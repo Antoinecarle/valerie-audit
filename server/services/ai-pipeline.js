@@ -290,10 +290,65 @@ Fournis les informations en JSON strict :
   ],
   "resume": "Synthèse des opportunités court séjour estival dans cette zone",
   "potentielEstival": "faible|modéré|élevé",
-  "activitesTouristiques": ["...", "..."]
+  "activitesTouristiques": [
+    {
+      "nom": "...",
+      "type": "Plage / Musée / Parc / Festival / Sport nautique / ...",
+      "description": "Brève description de l'activité et de son attrait touristique"
+    }
+  ]
 }
 
 IMPORTANT: Utilise Google Search pour trouver de vrais employeurs avec leurs coordonnées. Vise 15-25 employeurs. Réponds UNIQUEMENT en JSON valide.`;
+
+  const { text, groundingMetadata } = await callGemini(prompt, { useSearch: true });
+  const content = parseJSON(text);
+  return { content: content || { rawText: text }, rawAiResponse: text, groundingMetadata };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SECTION 5 — FICHE INFO
+// ═══════════════════════════════════════════════════════════════
+
+export async function generateFicheInfo(address) {
+  const prompt = `Tu es un expert en audit de résidences étudiantes en France.
+
+À partir de l'adresse : **${address}**
+
+Génère la fiche descriptive complète de cette résidence étudiante en JSON strict :
+
+{
+  "nomResidence": "Nom probable ou générique de la résidence",
+  "exploitant": "Nom de l'exploitant / gestionnaire probable (Nexity, Uxco, Réside Études, etc.)",
+  "adresse": "${address}",
+  "ville": "...",
+  "codePostal": "...",
+  "nbLogements": 0,
+  "typesLogements": ["Studio", "T1", "T1 bis"],
+  "surfacesMoyennes": {
+    "studio": 0,
+    "t1": 0,
+    "t1bis": 0
+  },
+  "loyersMoyens": {
+    "studio": "... €/mois",
+    "t1": "... €/mois",
+    "t1bis": "... €/mois"
+  },
+  "anneeConstruction": 0,
+  "uls": "Oui / Non / En cours",
+  "classementEtoiles": 0,
+  "labelQualite": "NF Habitat / Qualiresid / Aucun",
+  "services": ["Wifi", "Laverie", "Parking", "Salle de sport", "..."],
+  "accessibilite": "PMR / Non PMR",
+  "acces": {
+    "voiture": "Description accès voiture / parking",
+    "transport": "Arrêts bus/tram/métro les plus proches"
+  },
+  "description": "Description commerciale de la résidence pour le rapport"
+}
+
+IMPORTANT: Utilise Google Search pour trouver les vraies données si la résidence existe. Sinon génère des données plausibles pour la zone. Réponds UNIQUEMENT en JSON valide.`;
 
   const { text, groundingMetadata } = await callGemini(prompt, { useSearch: true });
   const content = parseJSON(text);
@@ -309,4 +364,5 @@ export const SECTIONS = [
   { type: 'enseignement', label: 'Enseignement supérieur', fn: generateEnseignement },
   { type: 'concurrence', label: 'Concurrence', fn: generateConcurrence },
   { type: 'court_sejour', label: 'Court séjour', fn: generateCourtSejour },
+  { type: 'fiche_info', label: 'Fiche info', fn: generateFicheInfo },
 ];

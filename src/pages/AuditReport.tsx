@@ -182,6 +182,7 @@ export default function AuditReport() {
   const [activeSection, setActiveSection] = useState<SectionType>('localisation');
   const [generatingSection, setGeneratingSection] = useState<SectionType | null>(null);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const autoGenerateTriggered = useRef(false);
 
@@ -291,6 +292,30 @@ export default function AuditReport() {
     );
   }
 
+  async function handleExportPptx() {
+    if (!id) return;
+    setIsExporting(true);
+    try {
+      const res = await fetch(`/api/audits/${id}/export?format=pptx`);
+      if (!res.ok) throw new Error(await res.text());
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disp = res.headers.get('Content-Disposition') || '';
+      const match = disp.match(/filename="([^"]+)"/);
+      a.download = match?.[1] ?? `audit_${id}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(`Erreur export PPTX : ${err instanceof Error ? err.message : err}`);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
   function handleRegenerateSection(type: SectionType) {
     if (!id) return;
     setGeneratingSection(type);
@@ -371,6 +396,18 @@ export default function AuditReport() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleExportPptx}
+              disabled={isExporting || anyGenerating}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-primary-500 border border-primary-600 rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-60"
+            >
+              {isExporting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              {isExporting ? 'Export...' : 'PPTX'}
+            </button>
             <button
               onClick={() => downloadMarkdown(audit)}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"

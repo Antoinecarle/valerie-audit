@@ -31,6 +31,13 @@ interface ActiviteTouristique {
   description?: string;
 }
 
+// Normalise string | object → ActiviteTouristique
+function normalizeActivite(a: unknown): ActiviteTouristique {
+  if (typeof a === 'string') return { nom: a };
+  if (a && typeof a === 'object') return a as ActiviteTouristique;
+  return { nom: String(a) };
+}
+
 type PotentielEstival = 'faible' | 'modéré' | 'élevé' | string;
 
 interface CourtSejourContent {
@@ -192,20 +199,23 @@ export default function CourtSejourSection({ content }: CourtSejourSectionProps)
             <h3 className="text-sm font-semibold text-gray-900">Activités touristiques</h3>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {data.activitesTouristiques.map((act, i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-xl p-3.5">
-                <div className="flex items-start gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                    <Sun className="w-3.5 h-3.5 text-amber-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{act.nom}</p>
-                    {act.type && <p className="text-xs text-gray-400 mt-0.5">{act.type}</p>}
-                    {act.description && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{act.description}</p>}
+            {data.activitesTouristiques.map((rawAct, i) => {
+              const act = normalizeActivite(rawAct);
+              return (
+                <div key={i} className="bg-white border border-gray-200 rounded-xl p-3.5">
+                  <div className="flex items-start gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                      <Sun className="w-3.5 h-3.5 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{act.nom}</p>
+                      {act.type && <p className="text-xs text-gray-400 mt-0.5">{act.type}</p>}
+                      {act.description && <p className="text-xs text-gray-500 mt-1 leading-relaxed">{act.description}</p>}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
