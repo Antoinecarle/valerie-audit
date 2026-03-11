@@ -28,3 +28,7 @@ CREATE TABLE IF NOT EXISTS audit_sections (
 
 CREATE INDEX IF NOT EXISTS idx_audit_sections_audit_id ON audit_sections(audit_id);
 CREATE INDEX IF NOT EXISTS idx_audits_status ON audits(status);
+
+-- Add geocoordinates (safe to run multiple times)
+ALTER TABLE audits ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION;
+ALTER TABLE audits ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION;

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { migrate, addConstraints } from './db/index.js';
 import auditsRouter from './routes/audits.js';
+import placesRouter from './routes/places.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -16,6 +17,7 @@ app.use(express.json({ limit: '10mb' }));
 
 // API Routes
 app.use('/api/audits', auditsRouter);
+app.use('/api/places', placesRouter);
 app.get('/api/health', (req, res) => res.json({ ok: true, port: PORT }));
 
 // Serve frontend static build (production)

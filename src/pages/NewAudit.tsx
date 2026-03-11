@@ -1,8 +1,41 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Building2, MapPin, Hash, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Building2, Hash, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
+import AddressAutocomplete, { type Prediction } from '../components/AddressAutocomplete';
+
+// ---------------------------------------------------------------------------
+// Helper: extract city and postalCode from secondary_text
+// Format is typically: "City, Department, Country" or "PostalCode City, Department, Country"
+// ---------------------------------------------------------------------------
+
+function parseSecondaryText(secondaryText: string): {
+  city: string;
+  postalCode: string;
+} {
+  const parts = secondaryText.split(',').map((s) => s.trim());
+  const firstPart = parts[0] ?? '';
+
+  // Check if the first part starts with a 5-digit postal code (French)
+  const postalMatch = firstPart.match(/^(\d{5})\s+(.+)$/);
+  if (postalMatch) {
+    return {
+      postalCode: postalMatch[1],
+      city: postalMatch[2],
+    };
+  }
+
+  // Otherwise, the first part is the city name
+  return {
+    city: firstPart,
+    postalCode: '',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Page component
+// ---------------------------------------------------------------------------
 
 export default function NewAudit() {
   const navigate = useNavigate();
@@ -30,6 +63,18 @@ export default function NewAudit() {
     if (!address.trim()) return;
     mutation.mutate();
   };
+
+  // When the user selects a prediction from the autocomplete dropdown
+  function handlePredictionSelect(prediction: Prediction) {
+    const { secondary_text } = prediction.structured_formatting;
+
+    // First try to parse city/postal from the structured secondary text
+    if (secondary_text) {
+      const parsed = parseSecondaryText(secondary_text);
+      if (parsed.city) setCity(parsed.city);
+      if (parsed.postalCode) setPostalCode(parsed.postalCode);
+    }
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-gray-50">
@@ -69,31 +114,23 @@ export default function NewAudit() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Address */}
+              {/* Address autocomplete */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Adresse complète
                   <span className="text-red-500 ml-0.5">*</span>
                 </label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="ex: 15 rue des Fleurs, 06800 Cagnes-sur-Mer"
-                    required
-                    autoFocus
-                    className="
-                      w-full h-11 pl-9 pr-3 rounded-lg border border-gray-200 text-sm text-gray-900
-                      placeholder:text-gray-400 bg-white
-                      focus:outline-none focus:border-primary-500 focus:ring-3 focus:ring-primary-100
-                      transition-all duration-150
-                    "
-                  />
-                </div>
+
+                <AddressAutocomplete
+                  value={address}
+                  onChange={setAddress}
+                  onSelect={handlePredictionSelect}
+                  placeholder="ex: 15 rue des Fleurs, Cagnes-sur-Mer"
+                  autoFocus
+                />
+
                 <p className="mt-1.5 text-xs text-gray-400">
-                  Incluez le numéro, la rue, le code postal et la ville pour de meilleurs résultats
+                  Commencez à taper pour voir les suggestions d'adresse
                 </p>
               </div>
 
@@ -190,7 +227,7 @@ export default function NewAudit() {
                       Création en cours...
                     </>
                   ) : (
-                    'Créer l\'audit'
+                    "Créer l'audit"
                   )}
                 </button>
               </div>

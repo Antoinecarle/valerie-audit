@@ -18,13 +18,40 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Geocode an address using Google Geocoding API
+async function geocodeAddress(address) {
+  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_GEOCODE_API_KEY;
+  if (!key) return null;
+  try {
+    const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
+    url.searchParams.set('address', address);
+    url.searchParams.set('key', key);
+    url.searchParams.set('region', 'fr');
+    const r = await fetch(url.toString(), { signal: AbortSignal.timeout(6000) });
+    const data = await r.json();
+    if (data.results?.[0]?.geometry?.location) {
+      return data.results[0].geometry.location; // { lat, lng }
+    }
+  } catch (err) {
+    console.warn('[Audits] Geocoding failed:', err.message);
+  }
+  return null;
+}
+
 // POST /api/audits
 router.post('/', async (req, res) => {
   try {
     const { address, city, postalCode } = req.body;
     if (!address?.trim()) return res.status(400).json({ error: 'Adresse requise' });
 
-    const audit = await createAudit({ address: address.trim(), city, postalCode });
+    const coords = await geocodeAddress(address.trim());
+    const audit = await createAudit({
+      address: address.trim(),
+      city,
+      postalCode,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
+    });
     res.status(201).json(audit);
   } catch (err) {
     console.error('[Audits] Create error:', err);

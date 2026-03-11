@@ -30,9 +30,9 @@ export async function migrate() {
 // Audit CRUD
 export async function createAudit(data) {
   const r = await query(
-    `INSERT INTO audits (address, city, postal_code, status)
-     VALUES ($1, $2, $3, 'draft') RETURNING *`,
-    [data.address, data.city || null, data.postalCode || null]
+    `INSERT INTO audits (address, city, postal_code, lat, lng, status)
+     VALUES ($1, $2, $3, $4, $5, 'draft') RETURNING *`,
+    [data.address, data.city || null, data.postalCode || null, data.lat || null, data.lng || null]
   );
   return r.rows[0];
 }
