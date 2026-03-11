@@ -20,7 +20,7 @@ router.get('/', async (req, res) => {
 
 // Geocode an address using Google Geocoding API
 async function geocodeAddress(address) {
-  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_GEOCODE_API_KEY;
+  const key = process.env.GOOGLE_GEOCODE_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
   if (!key) return null;
   try {
     const url = new URL('https://maps.googleapis.com/maps/api/geocode/json');
