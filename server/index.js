@@ -20,9 +20,13 @@ app.get('/api/health', (req, res) => res.json({ ok: true, port: PORT }));
 
 // Serve frontend static build (production)
 const distPath = join(__dirname, '..', 'dist');
+console.log(`[Server] distPath: ${distPath} — exists: ${existsSync(distPath)}`);
 if (existsSync(distPath)) {
+  console.log('[Server] Serving frontend from dist/');
   app.use(express.static(distPath));
   app.get('*', (_req, res) => res.sendFile(join(distPath, 'index.html')));
+} else {
+  console.log('[Server] dist/ not found — frontend not served');
 }
 
 // Boot
