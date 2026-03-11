@@ -237,46 +237,38 @@ export default function MapView() {
 
       try {
         const token = import.meta.env.VITE_MAPBOX_TOKEN as string;
-        const url = `https://api.mapbox.com/geocoding/v6/reverse?longitude=${lng}&latitude=${lat}&language=fr&access_token=${token}`;
+        // v5 API: proven stable format
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?language=fr&country=fr&access_token=${token}`;
         const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
           const feature = json?.features?.[0];
           if (feature) {
-            const props = feature.properties ?? {};
-            const fullAddress: string =
-              props.full_address ?? props.name ?? props.place_formatted ?? '';
-            // Try to split address from city/postal
-            const context: Array<{ feature_type?: string; name?: string; short_code?: string }> =
-              feature.properties?.context ?? {};
+            // place_name = "40 Chemin des Salles, 06800 Cagnes-sur-Mer, France"
+            const placeName: string = feature.place_name ?? '';
+            // Strip ", France" suffix
+            const fullAddress = placeName.replace(/,\s*France\s*$/i, '').trim();
 
-            let address = props.name ?? fullAddress;
             let city = '';
             let postal = '';
 
-            // Mapbox v6 context is an object keyed by feature_type
-            if (context && typeof context === 'object' && !Array.isArray(context)) {
-              const ctx = context as Record<string, { name?: string; short_code?: string }>;
-              city = ctx['place']?.name ?? ctx['locality']?.name ?? '';
-              postal = ctx['postcode']?.name ?? '';
-            } else if (Array.isArray(context)) {
-              for (const c of context as Array<{ feature_type?: string; name?: string; short_code?: string }>) {
-                if (c.feature_type === 'place' || c.feature_type === 'locality') city = c.name ?? city;
-                if (c.feature_type === 'postcode') postal = c.name ?? postal;
-              }
+            // context is an array: [{ id: "postcode.xxx", text: "06800" }, { id: "place.xxx", text: "Nice" }, ...]
+            for (const ctx of (feature.context ?? []) as Array<{ id: string; text: string }>) {
+              if (ctx.id?.startsWith('postcode.')) postal = ctx.text;
+              if (ctx.id?.startsWith('place.') || ctx.id?.startsWith('locality.')) city = ctx.text;
             }
 
-            setSelectionAddress(address);
+            setSelectionAddress(fullAddress);
             setSelectionCity(city);
             setSelectionPostalCode(postal);
           } else {
-            setSelectionAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+            setSelectionAddress('');
           }
         } else {
-          setSelectionAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+          setSelectionAddress('');
         }
       } catch {
-        setSelectionAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+        setSelectionAddress('');
       } finally {
         setIsGeocoding(false);
       }
