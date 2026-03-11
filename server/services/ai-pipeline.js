@@ -16,7 +16,7 @@ function getOpenAIKey() {
 /**
  * Call Gemini with optional Google Search grounding
  */
-async function callGemini(prompt, { useSearch = true, maxTokens = 8192 } = {}) {
+async function callGemini(prompt, { useSearch = true, maxTokens = 8192, retries = 1 } = {}) {
   const key = getGoogleKey();
   if (!key) throw new Error('GOOGLE_AI_API_KEY manquante');
 
@@ -32,26 +32,37 @@ async function callGemini(prompt, { useSearch = true, maxTokens = 8192 } = {}) {
     body.tools = [{ googleSearch: {} }];
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(120000),
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(180000), // 3 minutes
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Gemini error ${res.status}: ${err}`);
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+      const groundingMetadata = data.candidates?.[0]?.groundingMetadata || null;
+      return { text, groundingMetadata };
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        console.warn(`[AI] Attempt ${attempt + 1} failed (${err.message}), retrying...`);
+        await new Promise(r => setTimeout(r, 3000));
+      }
     }
-  );
-
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Gemini error: ${err}`);
   }
-
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
-  const groundingMetadata = data.candidates?.[0]?.groundingMetadata || null;
-
-  return { text, groundingMetadata };
+  throw lastErr;
 }
 
 /**
