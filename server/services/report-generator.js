@@ -3,7 +3,10 @@
  * Generates 18-slide PowerPoint audit report using pptxgenjs
  */
 
-import pptxgen from 'pptxgenjs';
+// pptxgenjs v4: use CJS build via createRequire (es.js has no "type":"module" in its package, crashes on Node.js ESM loader)
+import { createRequire } from 'module';
+const _require = createRequire(import.meta.url);
+const pptxgen = _require('pptxgenjs');
 import {
   generateLocationMap,
   generateSatelliteMap,
