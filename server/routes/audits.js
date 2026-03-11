@@ -72,12 +72,13 @@ router.put('/:id/sections/:type', async (req, res) => {
   }
 });
 
-// POST /api/audits/:id/generate — Start full generation (SSE streaming)
-router.post('/:id/generate', async (req, res) => {
+// GET /api/audits/:id/generate — Start full generation (SSE streaming)
+// Uses GET so EventSource (browser native SSE) can connect
+router.get('/:id/generate', async (req, res) => {
   const audit = await getAudit(req.params.id);
   if (!audit) return res.status(404).json({ error: 'Audit non trouvé' });
 
-  const sectionsToGenerate = req.body.sections || SECTIONS.map(s => s.type);
+  const sectionsToGenerate = SECTIONS.map(s => s.type);
 
   // SSE setup
   res.setHeader('Content-Type', 'text/event-stream');
@@ -138,8 +139,8 @@ router.post('/:id/generate', async (req, res) => {
   }
 });
 
-// POST /api/audits/:id/regenerate/:type — Regenerate a specific section
-router.post('/:id/regenerate/:type', async (req, res) => {
+// GET /api/audits/:id/regenerate/:type — Regenerate a specific section
+router.get('/:id/regenerate/:type', async (req, res) => {
   const audit = await getAudit(req.params.id);
   if (!audit) return res.status(404).json({ error: 'Audit non trouvé' });
 
