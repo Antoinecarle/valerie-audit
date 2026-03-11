@@ -18,6 +18,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api/audits', auditsRouter);
 app.get('/api/health', (req, res) => res.json({ ok: true, port: PORT }));
 
+// Temporary: filesystem debug
+app.get('/api/debug-fs', (_req, res) => {
+  import('fs').then(fs => {
+    const cwd = process.cwd();
+    const serverDir = __dirname;
+    const distPath2 = join(__dirname, '..', 'dist');
+    const rootContents = fs.readdirSync(join(__dirname, '..')).filter(f => !f.startsWith('.') && f !== 'node_modules');
+    res.json({ cwd, serverDir, distPath: distPath2, distExists: existsSync(distPath2), rootContents });
+  });
+});
+
 // Serve frontend static build (production)
 const distPath = join(__dirname, '..', 'dist');
 console.log(`[Server] distPath: ${distPath} — exists: ${existsSync(distPath)}`);
