@@ -20,6 +20,8 @@ export interface Audit {
   address: string;
   city: string | null;
   postal_code: string | null;
+  lat: number | null;
+  lng: number | null;
   status: 'draft' | 'generating' | 'done' | 'error';
   error: string | null;
   created_at: string;

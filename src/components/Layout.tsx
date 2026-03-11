@@ -1,11 +1,12 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { BarChart3, FileText, Home, PlusCircle } from 'lucide-react';
+import { BarChart3, FileText, Home, Map, PlusCircle } from 'lucide-react';
 
 export default function Layout() {
   const location = useLocation();
 
   const navItems = [
     { to: '/', label: 'Tableau de bord', icon: Home },
+    { to: '/carte', label: 'Carte', icon: Map },
     { to: '/nouveau', label: 'Nouvel audit', icon: PlusCircle },
   ];
 

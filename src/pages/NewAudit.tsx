@@ -3,35 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Building2, Hash, AlertCircle } from 'lucide-react';
 import { api } from '../lib/api';
-import AddressAutocomplete, { type Prediction } from '../components/AddressAutocomplete';
-
-// ---------------------------------------------------------------------------
-// Helper: extract city and postalCode from secondary_text
-// Format is typically: "City, Department, Country" or "PostalCode City, Department, Country"
-// ---------------------------------------------------------------------------
-
-function parseSecondaryText(secondaryText: string): {
-  city: string;
-  postalCode: string;
-} {
-  const parts = secondaryText.split(',').map((s) => s.trim());
-  const firstPart = parts[0] ?? '';
-
-  // Check if the first part starts with a 5-digit postal code (French)
-  const postalMatch = firstPart.match(/^(\d{5})\s+(.+)$/);
-  if (postalMatch) {
-    return {
-      postalCode: postalMatch[1],
-      city: postalMatch[2],
-    };
-  }
-
-  // Otherwise, the first part is the city name
-  return {
-    city: firstPart,
-    postalCode: '',
-  };
-}
+import AddressAutocomplete, { type BANFeature } from '../components/AddressAutocomplete';
 
 // ---------------------------------------------------------------------------
 // Page component
@@ -64,16 +36,11 @@ export default function NewAudit() {
     mutation.mutate();
   };
 
-  // When the user selects a prediction from the autocomplete dropdown
-  function handlePredictionSelect(prediction: Prediction) {
-    const { secondary_text } = prediction.structured_formatting;
-
-    // First try to parse city/postal from the structured secondary text
-    if (secondary_text) {
-      const parsed = parseSecondaryText(secondary_text);
-      if (parsed.city) setCity(parsed.city);
-      if (parsed.postalCode) setPostalCode(parsed.postalCode);
-    }
+  // When the user selects a feature from the autocomplete dropdown
+  function handlePredictionSelect(feature: BANFeature) {
+    const { city: c, postcode } = feature.properties;
+    if (c) setCity(c);
+    if (postcode) setPostalCode(postcode);
   }
 
   return (

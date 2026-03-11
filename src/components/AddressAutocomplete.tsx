@@ -8,42 +8,56 @@ import {
 import { MapPin, X, Search } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
-// Types
+// Types — BAN (Base Adresse Nationale) format
 // ---------------------------------------------------------------------------
 
-export interface MatchedSubstring {
-  offset: number;
-  length: number;
-}
-
-export interface StructuredFormatting {
-  main_text: string;
-  main_text_matched_substrings: MatchedSubstring[];
-  secondary_text: string;
-}
-
-export interface Prediction {
-  place_id: string;
-  description: string;
-  structured_formatting: StructuredFormatting;
+export interface BANFeature {
+  properties: {
+    label: string;      // Full address: "15 Rue de la République 06800 Cagnes-sur-Mer"
+    name: string;       // Street + number: "15 Rue de la République"
+    postcode: string;   // "06800"
+    city: string;       // "Cagnes-sur-Mer"
+    context: string;    // "06, Alpes-Maritimes, PACA"
+    type: string;       // "housenumber" | "street" | "municipality" | ...
+    housenumber?: string;
+    street?: string;
+  };
 }
 
 interface AutocompleteResponse {
-  predictions: Prediction[];
+  features: BANFeature[];
 }
 
 interface AddressAutocompleteProps {
   value: string;
   onChange: (value: string) => void;
-  onSelect: (prediction: Prediction) => void;
+  onSelect: (feature: BANFeature) => void;
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
 }
 
 // ---------------------------------------------------------------------------
-// Highlight helper
+// Highlight helper — highlights query chars within text
 // ---------------------------------------------------------------------------
+
+interface MatchedSubstring {
+  offset: number;
+  length: number;
+}
+
+function computeMatches(text: string, query: string): MatchedSubstring[] {
+  if (!query || query.length < 2) return [];
+  const lower = text.toLowerCase();
+  const q = query.toLowerCase();
+  const matches: MatchedSubstring[] = [];
+  let idx = 0;
+  while ((idx = lower.indexOf(q, idx)) !== -1) {
+    matches.push({ offset: idx, length: q.length });
+    idx += q.length;
+  }
+  return matches;
+}
 
 function highlightMatches(
   text: string,
@@ -54,7 +68,6 @@ function highlightMatches(
   const nodes: React.ReactNode[] = [];
   let cursor = 0;
 
-  // Sort by offset so we process left-to-right
   const sorted = [...substrings].sort((a, b) => a.offset - b.offset);
 
   sorted.forEach(({ offset, length }, i) => {
@@ -102,19 +115,23 @@ function SkeletonItem() {
 // ---------------------------------------------------------------------------
 
 interface PredictionItemProps {
-  prediction: Prediction;
+  feature: BANFeature;
+  query: string;
   isHighlighted: boolean;
   onMouseEnter: () => void;
   onMouseDown: (e: React.MouseEvent) => void;
 }
 
 function PredictionItem({
-  prediction,
+  feature,
+  query,
   isHighlighted,
   onMouseEnter,
   onMouseDown,
 }: PredictionItemProps) {
-  const { structured_formatting } = prediction;
+  const { name, city, postcode } = feature.properties;
+  const secondaryText = postcode ? `${postcode} ${city}` : city;
+  const matches = computeMatches(name, query);
 
   return (
     <div
@@ -145,13 +162,10 @@ function PredictionItem({
       {/* Text */}
       <div className="flex-1 min-w-0">
         <p className="text-[15px] font-semibold text-gray-900 leading-tight truncate">
-          {highlightMatches(
-            structured_formatting.main_text,
-            structured_formatting.main_text_matched_substrings,
-          )}
+          {highlightMatches(name, matches)}
         </p>
         <p className="text-[13px] text-gray-400 mt-0.5 truncate">
-          {structured_formatting.secondary_text}
+          {secondaryText}
         </p>
       </div>
 
@@ -181,7 +195,7 @@ export default function AddressAutocomplete({
   className = '',
   autoFocus = false,
 }: AddressAutocompleteProps) {
-  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [features, setFeatures] = useState<BANFeature[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -231,13 +245,13 @@ export default function AddressAutocomplete({
       );
       if (!res.ok) throw new Error('API error');
       const data: AutocompleteResponse = await res.json();
-      setPredictions(data.predictions ?? []);
+      setFeatures(data.features ?? []);
       setHasSearched(true);
       setIsOpen(true);
       setHighlightedIndex(-1);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
-        setPredictions([]);
+        setFeatures([]);
         setHasSearched(true);
       }
     } finally {
@@ -257,7 +271,7 @@ export default function AddressAutocomplete({
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
 
     if (val.length < 3) {
-      setPredictions([]);
+      setFeatures([]);
       setIsOpen(false);
       setIsLoading(false);
       return;
@@ -270,15 +284,15 @@ export default function AddressAutocomplete({
   }
 
   // ---------------------------------------------------------------------------
-  // Select a prediction
+  // Select a feature
   // ---------------------------------------------------------------------------
 
-  function handleSelect(prediction: Prediction) {
-    onChange(prediction.description);
-    onSelect(prediction);
+  function handleSelect(feature: BANFeature) {
+    onChange(feature.properties.label);
+    onSelect(feature);
     setIsOpen(false);
     setHighlightedIndex(-1);
-    setPredictions([]);
+    setFeatures([]);
   }
 
   // ---------------------------------------------------------------------------
@@ -287,7 +301,7 @@ export default function AddressAutocomplete({
 
   function handleClear() {
     onChange('');
-    setPredictions([]);
+    setFeatures([]);
     setIsOpen(false);
     setHighlightedIndex(-1);
     setHasSearched(false);
@@ -308,19 +322,19 @@ export default function AddressAutocomplete({
       case 'ArrowDown':
         e.preventDefault();
         setHighlightedIndex((prev) =>
-          prev < predictions.length - 1 ? prev + 1 : 0,
+          prev < features.length - 1 ? prev + 1 : 0,
         );
         break;
       case 'ArrowUp':
         e.preventDefault();
         setHighlightedIndex((prev) =>
-          prev > 0 ? prev - 1 : predictions.length - 1,
+          prev > 0 ? prev - 1 : features.length - 1,
         );
         break;
       case 'Enter':
         e.preventDefault();
-        if (highlightedIndex >= 0 && predictions[highlightedIndex]) {
-          handleSelect(predictions[highlightedIndex]);
+        if (highlightedIndex >= 0 && features[highlightedIndex]) {
+          handleSelect(features[highlightedIndex]);
         }
         break;
       case 'Escape':
@@ -338,9 +352,9 @@ export default function AddressAutocomplete({
   // ---------------------------------------------------------------------------
 
   const showDropdown =
-    isOpen && isFocused && (isLoading || predictions.length > 0 || hasSearched);
+    isOpen && isFocused && (isLoading || features.length > 0 || hasSearched);
   const showEmptyState =
-    !isLoading && hasSearched && predictions.length === 0 && value.length >= 3;
+    !isLoading && hasSearched && features.length === 0 && value.length >= 3;
 
   // ---------------------------------------------------------------------------
   // Render
@@ -384,7 +398,7 @@ export default function AddressAutocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => {
             setIsFocused(true);
-            if (predictions.length > 0) setIsOpen(true);
+            if (features.length > 0) setIsOpen(true);
           }}
           onBlur={() => setIsFocused(false)}
           placeholder={placeholder}
@@ -464,20 +478,19 @@ export default function AddressAutocomplete({
             </div>
           )}
 
-          {/* Predictions */}
-          {!isLoading && predictions.length > 0 && (
-            <div
-              className="divide-y divide-gray-50 max-h-96 overflow-y-auto"
-            >
-              {predictions.slice(0, 6).map((prediction, index) => (
+          {/* Features */}
+          {!isLoading && features.length > 0 && (
+            <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+              {features.slice(0, 6).map((feature, index) => (
                 <PredictionItem
-                  key={prediction.place_id}
-                  prediction={prediction}
+                  key={`${feature.properties.label}-${index}`}
+                  feature={feature}
+                  query={value}
                   isHighlighted={highlightedIndex === index}
                   onMouseEnter={() => setHighlightedIndex(index)}
                   onMouseDown={(e) => {
                     e.preventDefault();
-                    handleSelect(prediction);
+                    handleSelect(feature);
                   }}
                 />
               ))}
@@ -497,10 +510,10 @@ export default function AddressAutocomplete({
             </div>
           )}
 
-          {/* Powered by Google footer */}
+          {/* Powered by BAN footer */}
           <div className="h-8 flex items-center justify-center border-t border-gray-50 px-4">
             <p className="text-[10px] text-gray-300 tracking-wide">
-              Powered by Google
+              Adresses fournies par la Base Adresse Nationale
             </p>
           </div>
         </div>
